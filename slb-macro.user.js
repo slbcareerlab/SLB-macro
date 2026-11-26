@@ -2336,6 +2336,14 @@ function __SLB_MAIN__() {
     if (/^좌투/.test(t.hand || '')) el = el.filter((p) => !['포수', '2루수', '3루수', '유격수'].includes(p));
     return el.filter((p) => !DONE.has(p));
   }
+  // 지금 선수 유형·투타로 노릴 수 있는 포지션 전체 (체크 여부와 상관없이) — '모두 체크/해제' 기준
+  function eligiblePositions() {
+    const t = TPL || (onCreationForm() ? readForm() : null);
+    if (!t || !t.kind) return POSITIONS;
+    const saved = DONE; DONE = new Set(); const el = openPositions(t); DONE = saved;
+    return el.length ? el : POSITIONS;
+  }
+  const allChecked = () => eligiblePositions().every((x) => DONE.has(x));
   const openP = () => openPositions(TPL).filter(isPitcherPos);
   const openH = () => openPositions(TPL).filter((p) => !isPitcherPos(p));
   let TPL = load(K.tpl, null);
@@ -3018,7 +3026,7 @@ button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-colo
       <div class="bar"><span class="t">${window.__SLB_CHANNEL__ === 'dev' ? '[테스트] ' : ''}${f ? '★ 발견' : WAIT === 'form' ? '다음 선수' : '태생 리세'}${STAT.finds ? ' (' + STAT.finds + '명)' : ''}</span><span id="mini">${collapsed ? statusText : '시도 ' + STAT.tries + ' · 후보 탈락 ' + STAT.pre + ' · ' + hrs + '시간'}</span>${btn}<button class="fold" id="fold">${collapsed ? '▲' : '▼'}</button></div>
       ${collapsed ? '' : `<div class="body">
         <div id="est" class="est">${estText()}</div>
-        <div class="sec"><div class="row"><span class="h">뽑지 않을 포지션 선택</span><button class="mini" id="allpos">${POSITIONS.every((x) => DONE.has(x)) ? '모두 해제' : '모두 체크'}</button></div>
+        <div class="sec"><div class="row"><span class="h">뽑지 않을 포지션 선택</span><button class="mini" id="allpos">${allChecked() ? '모두 해제' : '모두 체크'}</button></div>
         <div class="grid">${POSITIONS.map((x) => `<button class="chip${DONE.has(x) ? ' done' : ''}" data-pos="${x}">${x}</button>`).join('')}</div>
         <div class="sub">✓ 표시한 포지션은 뽑지 않습니다 · v${VERSION}${window.__SLB_CHANNEL__ === 'dev' ? ' · 테스트판' : ''}</div></div>
         <div class="sec"><div class="h">잠재력 (GENIUS는 항상 노림)</div>
@@ -3041,7 +3049,7 @@ button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-colo
       </div>`}</div>`;
     root.querySelectorAll('[data-pos]').forEach((b) => { b.onclick = () => { const x = b.dataset.pos; DONE.has(x) ? DONE.delete(x) : DONE.add(x); save(K.done, [...DONE]); render(); }; });
     const allBtn = root.getElementById('allpos');
-    if (allBtn) allBtn.onclick = () => { DONE = POSITIONS.every((x) => DONE.has(x)) ? new Set() : new Set(POSITIONS); save(K.done, [...DONE]); render(); };
+    if (allBtn) allBtn.onclick = () => { DONE = allChecked() ? new Set() : new Set(POSITIONS); save(K.done, [...DONE]); render(); };
     const setC = (k, v) => { CFG[k] = v; saveCfg(); render(); };
     root.querySelectorAll('[data-cap]').forEach((b) => { b.onclick = () => setC('cap', Number(b.dataset.cap)); });
     root.querySelectorAll('[data-apt]').forEach((b) => { b.onclick = () => { const v = b.dataset.apt; setC('apt', /^\d+$/.test(v) ? Number(v) : v); }; });
