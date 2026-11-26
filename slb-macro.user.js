@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SLB macro (태생 리세 + 반자동 육성)
 // @namespace    slbcareerlab-slb-macro
-// @version      1.00
+// @version      1.01
 // @description  이번 생은 야구다: 뽑지 않을 포지션을 뺀 나머지에서 패널에서 고른 조건(잠재력·수비 적성·내구도·빠름)의 태생이 나올 때까지 리세 → 발견하면 멈추고 특별훈련만 대신(육성은 직접) → 새로운 인생을 누르면 2페이지 투구폼만 고르면 다시 리세.
 // @match        https://slbcareer.com/*
 // @match        https://*.slbcareer.com/*
@@ -2276,7 +2276,7 @@ function __SLB_MAIN__() {
   if (window.__slbBirthReroll) return;
   window.__slbBirthReroll = true;
 
-  const VERSION = '1.00';
+  const VERSION = '1.01';
   const K = {
     done: 'slb-br3-done', plan: 'slb-br3-plan', tpl: 'slb-br3-template', run: 'slb-br3-run', stat: 'slb-br3-stat',
     pend: 'slb-br3-pending', rej: 'slb-br3-rejected', ui: 'slb-br3-collapsed', form: 'slb-br3-form', tplPending: 'slb-br3-tpl-pending', wait: 'slb-br3-wait', dur: 'slb-br3-dur',
@@ -2506,7 +2506,7 @@ function __SLB_MAIN__() {
     return aptCache[key];
   }
   const capP = (cap, pitcher) => pitcher ? .02 * Math.max(0, Math.min(3, 99 - cap)) / 3 : .02 * Math.max(0, Math.min(4, 99 - cap)) / 4;
-  let SPEED = { c1: 10, measured: false, ...load('slb-br3-speed', {}) }; // 리세 1회(고3 시즌까지) 걸리는 초, 돌리면 실제 값으로 맞춰짐
+  let SPEED = { c1: 4, measured: false, ...load('slb-br3-speed', {}) }; // 리세 1회(고3 시즌까지) 걸리는 초, 돌리면 실제 값으로 맞춰짐
   function estimate(t) {
     if (!t || !t.kind) return null;
     const open = openPositions(t); if (!open.length) return null;
@@ -2625,10 +2625,12 @@ function __SLB_MAIN__() {
     if (sig !== lastSig) { lastSig = sig; stuckSince = Date.now(); }
     else if (Date.now() - stuckSince > 60000) return stop('같은 화면에서 60초 넘게 멈춤 — 보이는 버튼: ' + labels());
 
+    // 앱 홍보 창('웹에서 계속하기'): 웹에서 새 인생을 누를 때마다 뜸 → 다른 처리보다 먼저 닫음 (리세 버튼을 다시 눌러 창이 계속 새로 뜨는 것 방지)
+    const web = buttons(document).find((b) => /^웹에서 계속하기/.test(txt(b)) && !b.disabled && b.closest('.browser-exit-modal, [role=dialog]'));
+    if (web) { click(web, '앱 안내 닫기'); return act(); }
     if (pendingReset && !onCreationForm() && !$$('.new-career-confirmation').some(vis)) { if (resetLife('처음부터 리세 시작', true)) { pendingReset = false; return; } }
     if (pendingReset && onCreationForm()) pendingReset = false;
     // 안내·확인 창
-    const web = findBtn(/^웹에서 계속하기$/); if (web) { click(web, '앱 안내 닫기'); return act(); }
     if (/이전 선수의 기록을 보관했습니다/.test(body)) { const c = findBtn(/^계속하기$/); if (c) { click(c, '안내 닫기'); return act(); } }
     const confirmNew = findBtn(/^새로운 인생 시작/); // 새 인생 확인 창(또는 홈의 새 인생 버튼)
     if (confirmNew) { resetTry = 0; click(confirmNew, '새 인생 시작'); return act(); }
