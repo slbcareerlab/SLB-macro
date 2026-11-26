@@ -2967,7 +2967,7 @@ function __SLB_MAIN__() {
 .wrap{position:fixed;left:8px;right:8px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:2147483646;font:13px/1.4 -apple-system,system-ui,sans-serif;color:#f8fafc;background:rgba(15,23,42,.95);border-radius:14px;box-shadow:0 4px 18px rgba(0,0,0,.4);overflow:hidden;-webkit-text-size-adjust:100%}
 .bar{display:flex;align-items:center;gap:8px;padding:8px 10px}
 .bar .t{font-weight:700;white-space:nowrap}
-#mini{flex:1;min-width:0;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+#mini{flex:1;min-width:0;opacity:.8;font-size:12px;line-height:1.3;white-space:normal;word-break:keep-all;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-color:transparent;text-align:center;border-radius:8px;font:700 13px/1 -apple-system,system-ui,sans-serif}
 .go{background:#22c55e;color:#fff;padding:8px 14px}.st{background:#ef4444;color:#fff;padding:8px 14px}
 .fold{background:#334155;color:#e2e8f0;padding:8px 10px;min-width:28px}
@@ -3033,7 +3033,7 @@ button{all:unset;box-sizing:border-box;cursor:pointer;-webkit-tap-highlight-colo
         <div class="sec"><div class="h">꾸준형(보통형) 회귀 시 성장 속도 · 타자 (PA 목표 시)</div>
         <div class="grid2">${[[true, '빠름만'], [false, '고려 안 함']].map(([v, l]) => `<button class="chip${CFG.fast === v ? ' on' : ''}" data-fast="${v}">${l}</button>`).join('')}</div>
         <div class="sub">빠름은 타자 시드의 22%입니다 · 투수는 이 갈래가 없어 보지 않습니다 · 지속형·후반형으로 회귀할 생이면 '고려 안 함'이 리세 시간이 짧습니다</div></div>
-        ${TPL && !validate(TPL) ? `<div class="sub">저장된 선수 정보: ${TPL.nationality || ''} · ${TPL.kind} · ${TPL.hand || ''} · ${TPL.name}${TPL.team ? ' · ' + TPL.team : ''} — 1페이지를 직접 고치지 않으면 시작할 때 이 정보로 되돌립니다</div>` : ''}
+        ${TPL && !validate(TPL) ? `<div class="sub">저장된 선수 정보: ${TPL.nationality || ''} · ${TPL.kind} · ${TPL.hand || ''}${TPL.kind !== '타자' ? ' · 투구폼 ' + FORM : ''} · ${TPL.name}${TPL.team ? ' · ' + TPL.team : ''} — 1페이지를 직접 고치지 않으면 시작할 때 이 정보로 되돌립니다</div>` : ''}
         <div id="st" class="dim">${statusText}</div>
         ${STAT.last ? `<div class="dim">최근 ${STAT.last}</div>` : ''}
         ${window.SLBHM ? `<div class="hm"><span id="hmst">${hmText()}</span><button class="fold${window.SLBHM.cfg.on ? ' on' : ''}" id="hmon">${window.SLBHM.cfg.on ? '특수훈련 자동 진행 ON' : '특수훈련 자동 진행 OFF'}</button></div>` : ''}
