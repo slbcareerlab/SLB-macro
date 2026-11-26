@@ -2549,7 +2549,7 @@ function __SLB_MAIN__() {
 
   // ───────────────────── 생성 화면 입력값 읽기/복원 ─────────────────────
   const KINDS = ['투수', '타자', '투타겸업'];
-  const HANDS = ['우투우타', '우투좌타', '좌투우타', '좌투좌타'];
+  const HANDS = ['우투우타', '우투좌타', '좌투우타', '좌투좌타', '스위치타자']; // 타자는 좌투우타 대신 스위치타자(우투)
   const onCreationForm = () => $$('.creation-randomize-button').some(vis);
   function readForm() {
     const kind = KINDS.find((k) => buttons().some((b) => txt(b) === k && isOn(b)));
