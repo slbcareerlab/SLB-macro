@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SLB macro (태생 리세 + 반자동 육성)
 // @namespace    slbcareerlab-slb-macro
-// @version      1.01
+// @version      1.02
 // @description  이번 생은 야구다: 뽑지 않을 포지션을 뺀 나머지에서 패널에서 고른 조건(잠재력·수비 적성·내구도·빠름)의 태생이 나올 때까지 리세 → 발견하면 멈추고 특별훈련만 대신(육성은 직접) → 새로운 인생을 누르면 2페이지 투구폼만 고르면 다시 리세.
 // @match        https://slbcareer.com/*
 // @match        https://*.slbcareer.com/*
@@ -2276,7 +2276,7 @@ function __SLB_MAIN__() {
   if (window.__slbBirthReroll) return;
   window.__slbBirthReroll = true;
 
-  const VERSION = '1.01';
+  const VERSION = '1.02';
   const K = {
     done: 'slb-br3-done', plan: 'slb-br3-plan', tpl: 'slb-br3-template', run: 'slb-br3-run', stat: 'slb-br3-stat',
     pend: 'slb-br3-pending', rej: 'slb-br3-rejected', ui: 'slb-br3-collapsed', form: 'slb-br3-form', tplPending: 'slb-br3-tpl-pending', wait: 'slb-br3-wait', dur: 'slb-br3-dur',
@@ -2506,7 +2506,19 @@ function __SLB_MAIN__() {
     return aptCache[key];
   }
   const capP = (cap, pitcher) => pitcher ? .02 * Math.max(0, Math.min(3, 99 - cap)) / 3 : .02 * Math.max(0, Math.min(4, 99 - cap)) / 4;
-  let SPEED = { c1: 4, measured: false, ...load('slb-br3-speed', {}) }; // 리세 1회(고3 시즌까지) 걸리는 초, 돌리면 실제 값으로 맞춰짐
+  // 걸리는 시간(초): c1 = 선수 생성까지 가서 잠재력까지 판정한 1명, c2 = 생성 전 후보 단계에서 수비 적성으로 걸러진 1회
+  // 돌리면 각각 실제로 걸린 시간의 평균으로 바뀜 (기기에 저장, 각 5회 이상 모이면 실측으로 표시)
+  let SPEED = { c1: 8, c2: 4, n1: 0, n2: 0, ...load('slb-br3-speed', {}) };
+  if (SPEED.c2 === undefined || SPEED.n1 === undefined) SPEED = { c1: 8, c2: 4, n1: 0, n2: 0 }; // 이전 버전 값은 기준이 달라 버림
+  let cycleMark = null; // 직전 판정(생성 또는 후보 탈락)이 끝난 시점의 실행 누적 시간
+  function measure(kind) { // kind 1 = 생성 판정, 2 = 후보 탈락
+    const now = STAT.activeMs || 0;
+    if (cycleMark !== null) {
+      const dt = (now - cycleMark) / 1000;
+      if (dt > 0.3 && dt < 180) { const n = Math.min(200, (SPEED['n' + kind] || 0) + 1); SPEED['c' + kind] = SPEED['c' + kind] + (dt - SPEED['c' + kind]) / n; SPEED['n' + kind] = n; save('slb-br3-speed', SPEED); }
+    }
+    cycleMark = now;
+  }
   function estimate(t) {
     if (!t || !t.kind) return null;
     const open = openPositions(t); if (!open.length) return null;
@@ -2518,9 +2530,9 @@ function __SLB_MAIN__() {
     let full, pre = 0;
     if (!Pp.length) { const p = s * gH * d * f; if (!(p > 0)) return { impossible: true }; full = 1 / (gH * d * f); pre = full * (1 - s) / s; }
     else { const p = d * (1 - (1 - gP) * (1 - gH * f * s)); if (!(p > 0)) return { impossible: true }; full = 1 / p; }
-    const c1 = SPEED.c1, c2 = c1 * .3;
+    const c1 = SPEED.c1, c2 = SPEED.c2;
     const sec = full * c1 + pre * c2;
-    return { sec, full, pre, c1, measured: SPEED.measured };
+    return { sec, full, pre, c1, c2, m1: SPEED.n1 >= 5, m2: SPEED.n2 >= 5 };
   }
   const fmtT = (sec) => sec < 3600 ? `${Math.max(1, Math.round(sec / 60))}분` : sec < 86400 * 2 ? `${(sec / 3600).toFixed(1)}시간` : `${(sec / 86400).toFixed(1)}일`;
   function estText() {
@@ -2529,7 +2541,8 @@ function __SLB_MAIN__() {
     const e = estimate(t);
     if (!e) return '예상 소요: 노릴 포지션이 없습니다';
     if (e.impossible) return '예상 소요: 이 조건으로는 거의 나오지 않습니다 — 수비 적성을 낮춰 주세요';
-    return `예상 소요: 평균 약 ${fmtT(e.sec)} · 절반은 ${fmtT(e.sec * Math.LN2)} 안 (선수 약 ${Math.round(e.full).toLocaleString()}명, 1명 ${e.c1.toFixed(0)}초${e.measured ? ' 실측' : ' 기본값'})`;
+    const n = (x) => Math.round(x).toLocaleString();
+    return `예상 소요: 평균 약 ${fmtT(e.sec)} · 절반은 ${fmtT(e.sec * Math.LN2)} 안 — 생성까지 가는 선수 약 ${n(e.full)}명(1명 ${e.c1.toFixed(1)}초${e.m1 ? ' 실측' : ' 기본값'})${e.pre >= 0.5 ? ` + 후보 단계 탈락 약 ${n(e.pre)}회(1회 ${e.c2.toFixed(1)}초${e.m2 ? ' 실측' : ' 기본값'})` : ''}`;
   }
 
   const describe = (p) => p ?`${p.potentialTier} ${p.potentialCap} · ${DUR_KO[p.durabilityTier] || p.durabilityTier || '?'} · 시드 ${p.growthPatternSeed}${fastOf(p) ? '(빠름)' : ''}` : '-';
@@ -2683,10 +2696,7 @@ function __SLB_MAIN__() {
       if (!pend || (pend !== 'unknown' && g.player.id !== pend)) return stop('이 선수는 매크로가 만든 선수가 아니라서 건드리지 않습니다');
       save(K.pend, null);
       const r = judge(g.player);
-      STAT.tries++;
-      if (STAT.tries >= 15 && STAT.activeMs > 0) { // 실제 속도로 예상 시간 보정 (후보 단계 탈락은 1회의 30%로 침)
-        SPEED = { c1: Math.min(120, Math.max(2, STAT.activeMs / 1000 / (STAT.tries + .3 * STAT.pre))), measured: true }; save('slb-br3-speed', SPEED);
-      }
+      STAT.tries++; measure(1);
       STAT.last = `#${STAT.tries} ${r.pp ? '투 ' + describe(r.pp) : ''}${r.pp && r.hp ? ' / ' : ''}${r.hp ? '타 ' + describe(r.hp) : ''}`;
       if (r.pass) {
         const apt = g.player.defensiveAptitudesV2?.byPosition || {};
@@ -2725,7 +2735,7 @@ function __SLB_MAIN__() {
     if (pick.reject) {
       const rr = findBtn(/^재추첨$/); // 앱/로컬에서만 보이는 1회 재추첨
       if (rr) { click(rr, '후보 재추첨'); return act(); }
-      STAT.pre++; save(K.stat, STAT); render();
+      STAT.pre++; measure(2); save(K.stat, STAT); render();
       return resetLife('후보 탈락: 노리는 포지션 적성 미달');
     }
     save(K.plan, { pos: pick.pos, slot: pick.i });
@@ -2940,7 +2950,7 @@ function __SLB_MAIN__() {
     STAT = { tries: 0, pre: 0, started: Date.now(), found: null, last: '', finds: STAT.finds || 0 }; save(K.stat, STAT);
     save(K.pend, null); save(K.rej, null);
     clearInterval(titleTimer);
-    running = true; save(K.run, true); keepAwake(true);
+    running = true; save(K.run, true); keepAwake(true); cycleMark = null;
     lastSig = ''; stuckSince = Date.now();
     formTouched = false;
     status(`시작${usedSaved ? '(이전 선수 정보)' : ''} — ${t.nationality} · ${t.kind} · ${t.hand}${t.kind !== '타자' ? ' · 투구폼 ' + FORM : ''} · 노리는 포지션: ${openPositions(t).join(', ')}`);
